@@ -47,18 +47,9 @@ st.caption(f"Model: `{MODEL_ID}` · CPU inference · Semantic legal search")
 with st.sidebar:
     st.header("Cài đặt")
     top_k = st.slider("Số kết quả trả về (Top-K)", min_value=1, max_value=5, value=3)
-    st.divider()
-    st.header("Văn bản pháp lý")
-    st.info("Nhập các đoạn văn bản pháp luật bên dưới (mỗi đoạn một dòng). Để trống sẽ dùng dữ liệu mẫu.")
-    custom_text = st.text_area("Văn bản tùy chỉnh", height=200, placeholder="Điều 1. ...")
+    st.caption(f"Đang dùng **{len(SAMPLE_PASSAGES)}** đoạn văn bản mẫu.")
 
-    if custom_text.strip():
-        passages = [p.strip() for p in custom_text.strip().splitlines() if p.strip()]
-    else:
-        passages = SAMPLE_PASSAGES
-
-    st.caption(f"Đang dùng **{len(passages)}** đoạn văn bản.")
-
+passages = SAMPLE_PASSAGES
 model = load_model()
 passage_embs = encode_passages(model, tuple(passages))
 
