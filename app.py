@@ -8,12 +8,12 @@ SUPABASE_URL = "https://zzmqadwqrhrxiexuhevn.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6bXFhZHdxcmhyeGlleHVoZXZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNDM0NzgsImV4cCI6MjA5NDcxOTQ3OH0.1dKLhvvcKyWRRe5Fu5pJfNqimb0j92FiCPaH20Quw5A"
 
 
-@st.cache_resource(show_spinner="Dang tai model...")
+@st.cache_resource(show_spinner="Đang tải model...")
 def load_model():
     return SentenceTransformer(MODEL_ID, device="cpu")
 
 
-@st.cache_resource(show_spinner="Ket noi Supabase...")
+@st.cache_resource(show_spinner="Đang kết nối Supabase...")
 def load_supabase():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -44,36 +44,36 @@ def retrieve(query, model, supabase, top_k):
 
 st.set_page_config(page_title="VietLegal Search", page_icon="⚖️", layout="wide")
 st.title("⚖️ VietLegal Harrier 0.6B")
-st.caption(f"Model: `{MODEL_ID}` · Nguon: Zalo AI Legal Text Retrieval · CPU inference")
+st.caption(f"Model: `{MODEL_ID}` · Nguồn: Zalo AI Legal Text Retrieval · CPU inference")
 
 model     = load_model()
 supabase  = load_supabase()
 doc_count = get_doc_count(supabase)
 
 with st.sidebar:
-    st.header("Cai dat")
-    top_k = st.slider("So ket qua (Top-K)", min_value=1, max_value=10, value=5)
+    st.header("Cài đặt")
+    top_k = st.slider("Số kết quả (Top-K)", min_value=1, max_value=10, value=5)
     st.divider()
-    st.metric("Van ban trong DB", f"{doc_count:,}")
+    st.metric("Văn bản trong DB", f"{doc_count:,}")
     st.caption("Supabase: `vietlegal` · Singapore")
     st.caption("Dataset: GreenNode/zalo-ai-legal-text-retrieval-vn")
 
-st.subheader("Nhap cau hoi phap ly")
+st.subheader("Nhập câu hỏi pháp lý")
 query = st.text_input(
-    label="Cau hoi",
-    placeholder="VD: Thu tuc dang ky thanh lap doanh nghiep gom nhung buoc nao?",
+    label="Câu hỏi",
+    placeholder="VD: Thủ tục đăng ký thành lập doanh nghiệp gồm những bước nào?",
     label_visibility="collapsed",
 )
 
 sample_queries = [
-    "Thu tuc dang ky thanh lap doanh nghiep?",
-    "Nguoi lao dong bi sa thai trai phap luat co quyen gi?",
-    "Hop dong lao dong vo hieu trong truong hop nao?",
-    "Tien luong lam them gio duoc tinh nhu the nao?",
-    "Quyen cua nguoi tieu dung khi mua hang kem chat luong?",
+    "Thủ tục đăng ký thành lập doanh nghiệp?",
+    "Người lao động bị sa thải trái pháp luật có quyền gì?",
+    "Hợp đồng lao động vô hiệu trong trường hợp nào?",
+    "Tiền lương làm thêm giờ được tính như thế nào?",
+    "Quyền của người tiêu dùng khi mua hàng kém chất lượng?",
 ]
 
-st.caption("Cau hoi mau:")
+st.caption("Câu hỏi mẫu:")
 cols = st.columns(len(sample_queries))
 for col, sq in zip(cols, sample_queries):
     if col.button(sq, use_container_width=True):
@@ -81,16 +81,16 @@ for col, sq in zip(cols, sample_queries):
 
 if query:
     if doc_count == 0:
-        st.warning("Chua co du lieu trong Supabase. Chay notebook Colab de nap data truoc.")
+        st.warning("Chưa có dữ liệu trong Supabase. Chạy notebook Colab để nạp dữ liệu trước.")
     else:
-        with st.spinner("Dang tim kiem..."):
+        with st.spinner("Đang tìm kiếm..."):
             results = retrieve(query, model, supabase, top_k)
 
         st.divider()
-        st.subheader(f"Ket qua cho: *{query}*")
+        st.subheader(f"Kết quả cho: *{query}*")
 
         if not results:
-            st.error("Khong tim thay ket qua phu hop.")
+            st.error("Không tìm thấy kết quả phù hợp.")
         else:
             for rank, row in enumerate(results, 1):
                 score   = float(row.get("similarity", 0))
@@ -109,7 +109,7 @@ if query:
                         st.markdown(content[:800] + ("..." if len(content) > 800 else ""))
                     st.progress(
                         min(int(score * 100), 100),
-                        text=f"Similarity: {score:.4f}"
+                        text=f"Độ tương đồng: {score:.4f}"
                     )
 else:
-    st.info("Nhap cau hoi hoac chon cau hoi mau de bat dau tim kiem.")
+    st.info("Nhập câu hỏi hoặc chọn câu hỏi mẫu để bắt đầu tìm kiếm.")
