@@ -1,7 +1,6 @@
 import streamlit as st
 from sentence_transformers import SentenceTransformer
 from supabase import create_client
-import numpy as np
 
 MODEL_ID     = "mainguyen9/vietlegal-harrier-0.6b"
 INSTRUCTION  = "Instruct: Given a Vietnamese legal question, retrieve relevant legal passages that answer the question\nQuery: "
@@ -19,15 +18,6 @@ def load_supabase():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-def retrieve(query: str, model, supabase, top_k: int):
-    q_emb = model.encode([INSTRUCTION + query], normalize_embeddings=True)[0].tolist()
-    res = supabase.rpc("match_passages", {
-        "query_embedding": q_emb,
-        "match_count": top_k
-    }).execute()
-    return res.data
-
-
 def get_doc_count(supabase):
     try:
         res = supabase.table("legal_passages").select("id", count="exact").execute()
@@ -36,25 +26,37 @@ def get_doc_count(supabase):
         return 0
 
 
+def retrieve(query, model, supabase, top_k):
+    q_emb = model.encode(
+        [INSTRUCTION + query],
+        normalize_embeddings=True
+    )[0].tolist()
+    res = supabase.rpc("match_passages", {
+        "query_embedding": q_emb,
+        "match_count": top_k
+    }).execute()
+    return res.data
+
+
 # ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
 
 st.set_page_config(page_title="VietLegal Search", page_icon="⚖️", layout="wide")
-
 st.title("⚖️ VietLegal Harrier 0.6B")
-st.caption(f"Model: `{MODEL_ID}` · CPU inference · Semantic legal search")
+st.caption(f"Model: `{MODEL_ID}` · Nguon: Zalo AI Legal Text Retrieval · CPU inference")
 
-model    = load_model()
-supabase = load_supabase()
+model     = load_model()
+supabase  = load_supabase()
 doc_count = get_doc_count(supabase)
 
 with st.sidebar:
     st.header("Cai dat")
-    top_k = st.slider("So ket qua tra ve (Top-K)", min_value=1, max_value=10, value=3)
+    top_k = st.slider("So ket qua (Top-K)", min_value=1, max_value=10, value=5)
     st.divider()
     st.metric("Van ban trong DB", f"{doc_count:,}")
-    st.caption(f"Supabase: `vietlegal`")
+    st.caption("Supabase: `vietlegal` · Singapore")
+    st.caption("Dataset: GreenNode/zalo-ai-legal-text-retrieval-vn")
 
 st.subheader("Nhap cau hoi phap ly")
 query = st.text_input(
@@ -68,6 +70,7 @@ sample_queries = [
     "Nguoi lao dong bi sa thai trai phap luat co quyen gi?",
     "Hop dong lao dong vo hieu trong truong hop nao?",
     "Tien luong lam them gio duoc tinh nhu the nao?",
+    "Quyen cua nguoi tieu dung khi mua hang kem chat luong?",
 ]
 
 st.caption("Cau hoi mau:")
@@ -78,7 +81,7 @@ for col, sq in zip(cols, sample_queries):
 
 if query:
     if doc_count == 0:
-        st.warning("Chua co du lieu trong Supabase. Chay script load_data.py truoc.")
+        st.warning("Chua co du lieu trong Supabase. Chay notebook Colab de nap data truoc.")
     else:
         with st.spinner("Dang tim kiem..."):
             results = retrieve(query, model, supabase, top_k)
@@ -87,15 +90,13 @@ if query:
         st.subheader(f"Ket qua cho: *{query}*")
 
         if not results:
-            st.error("Khong tim thay ket qua.")
+            st.error("Khong tim thay ket qua phu hop.")
         else:
             for rank, row in enumerate(results, 1):
-                score    = float(row.get("similarity", 0))
-                content  = row.get("content", "")
-                metadata = row.get("metadata", {})
-                title    = metadata.get("title", "")
-                loai     = metadata.get("loai_van_ban", "")
-                ngay     = metadata.get("ngay_ban_hanh", "")
+                score   = float(row.get("similarity", 0))
+                content = row.get("content", "")
+                title   = row.get("title", "")
+                doc_id  = row.get("doc_id", "")
 
                 with st.container(border=True):
                     col1, col2 = st.columns([1, 11])
@@ -103,9 +104,12 @@ if query:
                     with col2:
                         if title:
                             st.markdown(f"**{title}**")
-                        if loai or ngay:
-                            st.caption(f"{loai}  |  {ngay}")
-                        st.markdown(content[:600] + ("..." if len(content) > 600 else ""))
-                    st.progress(min(int(score * 100), 100), text=f"Score: {score:.4f}")
+                        if doc_id:
+                            st.caption(f"doc_id: `{doc_id}`")
+                        st.markdown(content[:800] + ("..." if len(content) > 800 else ""))
+                    st.progress(
+                        min(int(score * 100), 100),
+                        text=f"Similarity: {score:.4f}"
+                    )
 else:
     st.info("Nhap cau hoi hoac chon cau hoi mau de bat dau tim kiem.")
